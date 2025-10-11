@@ -63,6 +63,8 @@ def test_add_book_invalid_copies():
     assert success is False
     assert "positive" in message.lower()
 
+# New R1 Tests
+
 def test_add_book_title_too_long():
     """Test adding a book with title longer than 200 chars should fail."""
     long_title = "A" * 201
@@ -141,6 +143,8 @@ def test_borrow_exceeds_limit():
     assert success is False
     assert "maximum borrowing limit" in message
 
+# New R3 Test
+
 def test_borrow_invalid_patron_id_non_digit():
     """Test borrowing with invalid patron ID (contains non-digits)."""
     success, message = borrow_book_by_patron("12345A", 1)
@@ -199,6 +203,8 @@ def test_late_fee_cap():
     # Patron 999999 loan is 22 days overdue, calculation yields $18.50, capped at $15.00
     result = calculate_late_fee_for_book("999999", 1)
     assert result["fee_amount"] == 15.00
+
+# New R5 Test
 
 def test_late_fee_book_not_in_catalog():
     """Tests calculate_late_fee_for_book when the book ID does not exist in the catalog."""
@@ -268,6 +274,8 @@ def test_patron_status_borrow_limit_tracking():
     """Use corrected key 'currently_borrowed_count'."""
     report = get_patron_status_report("123456")
     assert report["currently_borrowed_count"] >= 0
+
+# New R7 Tests
 
 def test_patron_status_correct_structure_new_keys():
     """Test the final, correct report structure and types."""
