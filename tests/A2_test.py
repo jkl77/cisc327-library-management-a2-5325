@@ -203,6 +203,15 @@ def test_late_fee_exactly_8_days():
     """New Test: Fixture dependent. Skip execution."""
     pass
 
+def test_late_fee_book_not_in_catalog():
+    """Tests calculate_late_fee_for_book when the book ID does not exist in the catalog."""
+    # 9999 is a book ID assumed not to exist in the database.
+    result = calculate_late_fee_for_book("123456", 9999) 
+    
+    assert result['fee_amount'] == 0.00
+    assert result['days_overdue'] == 0
+    assert "Book not found" in result['status']
+
 # --- R6 Tests: Ensuring the Book Search Function Works Properly ---
 
 def test_search_by_title_partial():
