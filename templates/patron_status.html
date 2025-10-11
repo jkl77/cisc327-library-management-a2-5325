@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>🧑‍💻 Patron Status Report</h2>
+<p>View the current borrowing status, active loans, and total fees owed for a library patron (R7).</p>
+
+<!-- Form to input Patron ID -->
+<form method="GET" action="{{ url_for('patron.status_report') }}" style="display: flex; gap: 10px; align-items: flex-end;">
+    <div class="form-group" style="flex-grow: 1;">
+        <label for="patron_id">Enter Patron ID *</label>
+        <input type="text" id="patron_id" name="patron_id" pattern="[0-9]{6}" maxlength="6" required
+               value="{{ patron_id if patron_id else '' }}" placeholder="e.g., 123456">
+        <small style="color: #666;">6-digit library card number</small>
+    </div>
+    
+    <div class="form-group" style="margin-bottom: 5px;">
+        <button type="submit" class="btn">View Status</button>
+    </div>
+</form>
+
+{% if report %}
+    <hr style="margin: 30px 0;">
+
+    <h3>Status for Patron ID: {{ report.patron_id }}</h3>
+
+    <!-- Determine the class based on fee status, using the classes defined in base.html -->
+    {% set fee_summary_class = 'flash-error' if report.total_late_fees_owed > 0 else 'flash-success' %}
+
+    <!-- Summary Statistics -->
+    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+        <div style="flex: 1; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
+            <p style="font-size: 1.1em; margin: 0; font-weight: bold;">
+                Total Books Currently Borrowed: <span style="color: #34495e;">{{ report.currently_borrowed_count }}</span>
+            </p>
+        </div>
+        
+        <div class="{{ fee_summary_class }}" 
+             style="flex: 1; padding: 15px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <p style="font-size: 1.1em; margin: 0; font-weight: bold;">
+                Total Late Fees Owed: 
+                <span class="{% if report.total_late_fees_owed > 0 %}status-unavailable{% else %}status-available{% endif %}">
+                    ${{ "%.2f" | format(report.total_late_fees_owed) }}
+                </span>
+            </p>
+            {% if report.total_late_fees_owed > 0 %}
+                <small style="display: block; margin-top: 5px;">Includes fees for active overdue loans and historical debt.</small>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Currently Borrowed Books (Active Loans) -->
+    <h4>Currently Borrowed Books ({{ report.currently_borrowed_count }} total)</h4>
+    {% if report.currently_borrowed_books %}
+    <table>
+        <thead>
+            <tr>
+                <th>Book ID</th>
+                <th>Title</th>
+                <th>Due Date</th>
+                <th>Current Fee Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for loan in report.currently_borrowed_books %}
+            <tr>
+                <td>{{ loan.book_id }}</td>
+                <td>{{ loan.title }}</td>
+                <td>{{ loan.due_date }}</td>
+                <td>
+                    <!-- Uses standard status classes for loan status display -->
+                    {% if loan.current_fee_amount > 0 %}
+                        <span class="status-unavailable">${{ "%.2f" | format(loan.current_fee_amount) }} (OVERDUE)</span>
+                    {% else %}
+                        <span class="status-available">On Time</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>This patron currently has no active loans.</p>
+    {% endif %}
+
+    <!-- Borrowing History -->
+    <h4 style="margin-top: 30px;">Borrowing History Summary</h4>
+    {% if report.borrowing_history %}
+    <table>
+        <thead>
+            <tr>
+                <th>Book ID</th>
+                <th>Title</th>
+                <th>Due Date</th>
+                <th>Return Date</th>
+                <th>Days Overdue</th>
+                <th>Fee Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for loan in report.borrowing_history %}
+            <tr>
+                <td>{{ loan.book_id }}</td>
+                <td>{{ loan.title }}</td>
+                <td>{{ loan.due_date }}</td>
+                <td>{{ loan.return_date }}</td>
+                <td>{{ loan.days_overdue }}</td>
+                <td>
+                    <!-- Uses standard status classes for loan status display -->
+                    {% if loan.fee_amount > 0 %}
+                        <span class="status-unavailable">${{ "%.2f" | format(loan.fee_amount) }} FEE INCURRED</span>
+                    {% else %}
+                        <span class="status-available">No Fee</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>This patron currently has no historical loans.</p>
+    {% endif %}
+
+{% elif patron_id and not report %}
+    <div class="flash-error">
+        Error: Could not retrieve a status report for Patron ID '{{ patron_id }}'. Please check the ID or system status.
+    </div>
+{% endif %}
+
+{% endblock %}

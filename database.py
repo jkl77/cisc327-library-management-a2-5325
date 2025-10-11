@@ -105,27 +105,33 @@ def get_book_by_isbn(isbn: str) -> Optional[Dict]:
     conn.close()
     return dict(book) if book else None
 
+# Changed this so it pulls all borrowed books (Current & historical) for patron status report
 def get_patron_borrowed_books(patron_id: str) -> List[Dict]:
-    """Get currently borrowed books for a patron."""
+    """Get all borrowed books for a patron."""
     conn = get_db_connection()
     records = conn.execute('''
         SELECT br.*, b.title, b.author 
         FROM borrow_records br 
         JOIN books b ON br.book_id = b.id 
-        WHERE br.patron_id = ? AND br.return_date IS NULL
-        ORDER BY br.borrow_date
+        WHERE br.patron_id = ?
+        ORDER BY br.borrow_date DESC
     ''', (patron_id,)).fetchall()
     conn.close()
     
     borrowed_books = []
     for record in records:
+        return_date_str = record['return_date']
+        # Convert return_date to datetime object only if it's not None
+        return_date = datetime.fromisoformat(return_date_str) if return_date_str else None
+
         borrowed_books.append({
             'book_id': record['book_id'],
             'title': record['title'],
             'author': record['author'],
             'borrow_date': datetime.fromisoformat(record['borrow_date']),
             'due_date': datetime.fromisoformat(record['due_date']),
-            'is_overdue': datetime.now() > datetime.fromisoformat(record['due_date'])
+            'is_overdue': datetime.now() > datetime.fromisoformat(record['due_date']),
+            'return_date': return_date,
         })
     
     return borrowed_books
