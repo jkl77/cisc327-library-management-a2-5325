@@ -24,4 +24,4 @@ jobs:
 
         - name: Run tests
           run: |
-            --cov=library_service --cov-report=xml tests/ 
+            --cov-report=xml tests/ 
