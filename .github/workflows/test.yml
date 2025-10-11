@@ -24,4 +24,4 @@ jobs:
 
         - name: Run tests
           run: |
-            pytest tests/
+            --cov=library_service --cov-report=xml tests/ 
