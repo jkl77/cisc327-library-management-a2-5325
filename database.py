@@ -17,12 +17,16 @@ def get_db_connection():
     return conn
 
 def init_database():
-    """Initialize the database with required tables."""
+    """FIX: Initialize the database by dropping and recreating tables for a clean slate."""
     conn = get_db_connection()
+    
+    # Drop existing tables to ensure a clean state
+    conn.execute('DROP TABLE IF EXISTS borrow_records')
+    conn.execute('DROP TABLE IF EXISTS books')
     
     # Create books table
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS books (
+        CREATE TABLE books (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             author TEXT NOT NULL,
@@ -34,7 +38,7 @@ def init_database():
     
     # Create borrow_records table
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS borrow_records (
+        CREATE TABLE borrow_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patron_id TEXT NOT NULL,
             book_id INTEGER NOT NULL,
@@ -49,16 +53,20 @@ def init_database():
     conn.close()
 
 def add_sample_data():
-    """Add sample data to the database if it's empty."""
+    """FIX: Corrected book availability and ensured Patron 654321 has 5 loans for limit test."""
     conn = get_db_connection()
     book_count = conn.execute('SELECT COUNT(*) as count FROM books').fetchone()['count']
     
     if book_count == 0:
-        # Add sample books
+        # Initial Books for various tests
         sample_books = [
-            ('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 3),
-            ('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 2),
-            ('1984', 'George Orwell', '9780451524935', 1)
+            ('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 3), # Book ID 1
+            ('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 2), # Book ID 2
+            ('1984', 'George Orwell', '9780451524935', 1), # Book ID 3 (Unavailable test case)
+            ('Moby Dick', 'Herman Melville', '9781503280786', 1), # Book ID 4 (Used for Patron 654321 limit)
+            ('War and Peace', 'Leo Tolstoy', '9780199232765', 1), # Book ID 5 (Used for Patron 654321 limit)
+            ('Pride and Prejudice', 'Jane Austen', '9780141439518', 1), # Book ID 6 (Used for Patron 654321 limit)
+            ('The Odyssey', 'Homer', '9780140268867', 1) # Book ID 7 (The available book for the limit test attempt)
         ]
         
         for title, author, isbn, copies in sample_books:
@@ -67,17 +75,29 @@ def add_sample_data():
                 VALUES (?, ?, ?, ?, ?)
             ''', (title, author, isbn, copies, copies))
         
-        # Make 1984 unavailable by adding a borrow record
+        # 1. Set up Patron '123456' with one loan (1984, Book ID 3)
         conn.execute('''
             INSERT INTO borrow_records (patron_id, book_id, borrow_date, due_date)
             VALUES (?, ?, ?, ?)
         ''', ('123456', 3, 
               (datetime.now() - timedelta(days=5)).isoformat(),
               (datetime.now() + timedelta(days=9)).isoformat()))
+        conn.execute('UPDATE books SET available_copies = 0 WHERE id = 3') # Book 3 now unavailable
         
-        # Update available copies for 1984
-        conn.execute('UPDATE books SET available_copies = 0 WHERE id = 3')
+        # 2. Set up Patron '654321' with max loans (5) to fail the limit test (R3)
+        patron_id_limit = '654321'
+        # Borrow Books IDs 1, 2, 4, 5, 6 (5 loans total)
+        limit_loans = [1, 2, 4, 5, 6] 
         
+        for book_id in limit_loans:
+            conn.execute('''
+                INSERT INTO borrow_records (patron_id, book_id, borrow_date, due_date)
+                VALUES (?, ?, ?, ?)
+            ''', (patron_id_limit, book_id, 
+                  (datetime.now() - timedelta(days=2)).isoformat(),
+                  (datetime.now() + timedelta(days=12)).isoformat()))
+            conn.execute('UPDATE books SET available_copies = available_copies - 1 WHERE id = ?', (book_id,))
+            
         conn.commit()
     
     conn.close()
