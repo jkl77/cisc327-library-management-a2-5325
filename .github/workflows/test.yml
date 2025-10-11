@@ -24,4 +24,4 @@ jobs:
 
         - name: Run tests with coverage
           run: |
-            pytest tests/tests.py
+            pytest -v
