@@ -48,4 +48,4 @@ See [`student_instructions.md`](student_instructions.md) for complete assignment
 - [Pytest framework](https://realpython.com/pytest-python-testing/)
 - [Python Blueprint](https://flask.palletsprojects.com/en/stable/blueprints)
 
-
+![Library Service Test](https://github.com/jkl77/cisc327-library-management-a2-5325/actions/workflows/test.yml/badge.svg)
