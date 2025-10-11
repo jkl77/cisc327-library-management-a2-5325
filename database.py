@@ -60,13 +60,13 @@ def add_sample_data():
     if book_count == 0:
         # Initial Books for various tests
         sample_books = [
-            ('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 3), # Book ID 1
-            ('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 2), # Book ID 2
-            ('1984', 'George Orwell', '9780451524935', 1), # Book ID 3 (Unavailable test case)
-            ('Moby Dick', 'Herman Melville', '9781503280786', 1), # Book ID 4 (Used for Patron 654321 limit)
-            ('War and Peace', 'Leo Tolstoy', '9780199232765', 1), # Book ID 5 (Used for Patron 654321 limit)
-            ('Pride and Prejudice', 'Jane Austen', '9780141439518', 1), # Book ID 6 (Used for Patron 654321 limit)
-            ('The Odyssey', 'Homer', '9780140268867', 1) # Book ID 7 (The available book for the limit test attempt)
+            ('The Great Gatsby', 'F. Scott Fitzgerald', '9780743273565', 5),
+            ('To Kill a Mockingbird', 'Harper Lee', '9780061120084', 2), 
+            ('1984', 'George Orwell', '9780451524935', 1),
+            ('Moby Dick', 'Herman Melville', '9781503280786', 1), 
+            ('War and Peace', 'Leo Tolstoy', '9780199232765', 1),
+            ('Pride and Prejudice', 'Jane Austen', '9780141439518', 1), 
+            ('The Odyssey', 'Homer', '9780140268867', 1) 
         ]
         
         for title, author, isbn, copies in sample_books:
@@ -75,16 +75,16 @@ def add_sample_data():
                 VALUES (?, ?, ?, ?, ?)
             ''', (title, author, isbn, copies, copies))
         
-        # 1. Set up Patron '123456' with one loan (1984, Book ID 3)
+        # Set up Patron '123456' with one loan (1984, Book ID 3)
         conn.execute('''
             INSERT INTO borrow_records (patron_id, book_id, borrow_date, due_date)
             VALUES (?, ?, ?, ?)
         ''', ('123456', 3, 
               (datetime.now() - timedelta(days=5)).isoformat(),
               (datetime.now() + timedelta(days=9)).isoformat()))
-        conn.execute('UPDATE books SET available_copies = 0 WHERE id = 3') # Book 3 now unavailable
+        conn.execute('UPDATE books SET available_copies = 0 WHERE id = 3') 
         
-        # 2. Set up Patron '654321' with max loans (5) to fail the limit test (R3)
+        # Set up Patron '654321' with max loans (5) to fail the limit test (R3)
         patron_id_limit = '654321'
         # Borrow Books IDs 1, 2, 4, 5, 6 (5 loans total)
         limit_loans = [1, 2, 4, 5, 6] 
@@ -97,7 +97,34 @@ def add_sample_data():
                   (datetime.now() - timedelta(days=2)).isoformat(),
                   (datetime.now() + timedelta(days=12)).isoformat()))
             conn.execute('UPDATE books SET available_copies = available_copies - 1 WHERE id = ?', (book_id,))
-            
+        
+        # Set up Patron '777777' with one loan (The Great Gatsby, Book ID 1)
+        conn.execute('''
+            INSERT INTO borrow_records (patron_id, book_id, borrow_date, due_date)
+            VALUES (?, ?, ?, ?)
+        ''', ('777777', 1, 
+              (datetime.now() - timedelta(days=16)).isoformat(),
+              (datetime.now() - timedelta(days=2)).isoformat()))
+        conn.execute('UPDATE books SET available_copies = 3 WHERE id = 1')
+
+        # Set up Patron '888888' with one loan (The Great Gatsby, Book ID 1)
+        conn.execute('''
+            INSERT INTO borrow_records (patron_id, book_id, borrow_date, due_date)
+            VALUES (?, ?, ?, ?)
+        ''', ('888888', 1, 
+              (datetime.now() - timedelta(days=22)).isoformat(),
+              (datetime.now() - timedelta(days=8)).isoformat()))
+        conn.execute('UPDATE books SET available_copies = 2 WHERE id = 1')
+
+        # Set up Patron '999999' with one loan (The Great Gatsby, Book ID 1)
+        conn.execute('''
+            INSERT INTO borrow_records (patron_id, book_id, borrow_date, due_date)
+            VALUES (?, ?, ?, ?)
+        ''', ('999999', 1, 
+              (datetime.now() - timedelta(days=36)).isoformat(),
+              (datetime.now() - timedelta(days=22)).isoformat()))
+        conn.execute('UPDATE books SET available_copies = 1 WHERE id = 1')
+
         conn.commit()
     
     conn.close()

@@ -19,18 +19,18 @@ from library_service import (
 
 from database import (
     get_all_books,
+    get_book_by_id,
     init_database, 
     add_sample_data 
 )
 
-# --- PYTEST FIXTURE FOR TEST ISOLATION ---
 @pytest.fixture(autouse=True, scope="function")
 def setup_db_for_test():
     """Clears and reloads sample data before EVERY test to ensure tables exist and state is consistent."""
     init_database()
     add_sample_data()
 
-# --- R1 Tests: Add a Book to the Catalog ---
+# R1 Tests: Add a Book to the Catalog
 
 def test_add_book_valid_input():
     """Add a book with all valid inputs."""
@@ -79,7 +79,7 @@ def test_add_book_duplicate_isbn():
     assert success == False
     assert "already exists" in message
 
-# --- R2 Tests: Checking the Book Catalog Display ---
+# R2 Tests: Checking the Book Catalog Display
 
 def test_catalog_fetch_returns_list(): 
     """Catalog fetch should return a list (using get_all_books).""" 
@@ -101,7 +101,7 @@ def test_catalog_shows_available_vs_total():
         assert 0 <= book["available_copies"] <= book["total_copies"] 
 
 def test_catalog_empty_case(): 
-    """FIX: Overrides autouse fixture to test empty state.""" 
+    """Tests empty state.""" 
     init_database() # Clears tables but does not load sample data
     catalog = get_all_books() 
     assert catalog == [] 
@@ -112,7 +112,7 @@ def test_catalog_includes_id_field():
     if catalog: 
         assert "id" in catalog[0] 
 
-# --- R3 Tests: Checking the Book Borrowing Functionality ---
+# R3 Tests: Checking the Book Borrowing Functionality
 
 def test_borrow_valid_case():
     """Borrow book successfully with valid patron and available book."""
@@ -137,7 +137,6 @@ def test_borrow_unavailable_book():
 def test_borrow_exceeds_limit():
     """FIX: Borrow when patron already has 5 books should fail."""
     # Patron 654321 is set up with 5 active loans by the autouse fixture
-    # Book ID 7 is the available book for the 6th loan attempt.
     success, message = borrow_book_by_patron("654321", 7) 
     assert success is False
     assert "maximum borrowing limit" in message
@@ -148,7 +147,7 @@ def test_borrow_invalid_patron_id_non_digit():
     assert success == False
     assert "digits" in message
 
-# --- R4 Tests: Validating the Book Return Processes ---
+# R4 Tests: Validating the Book Return Processes
 
 def test_return_book_success():
     """Return a borrowed book successfully."""
@@ -167,16 +166,16 @@ def test_return_invalid_patron_id():
     assert success is False
 
 def test_return_updates_available_copies():
-    """Returning book should increase available copies. (Placeholder test)"""
-    # This test is simplistic and assumes the state after borrowing/returning book ID 1
+    """Returning book should increase available copies."""
     borrow_book_by_patron("123456", 1)
+    book = get_book_by_id(1)
+    before = book["available_copies"]
     return_book_by_patron("123456", 1)
-    before = 1
-    after = 2
+    book = get_book_by_id(1)
+    after = book["available_copies"]
     assert after == before + 1
 
-
-# --- R5 Tests: Validating Proper Late Fee Calculation ---
+# R5 Tests: Validating Proper Late Fee Calculation
 
 def test_late_fee_on_time():
     """No fee when book returned on time."""
@@ -184,35 +183,31 @@ def test_late_fee_on_time():
     assert result["fee_amount"] == 0.0
 
 def test_late_fee_within_7_days():
-    """Old test removed due to fixture dependency."""
-    pass
+    """FIX: Fee should be $0.50/day up to 7 days (Patron 777777 is 2 days overdue)."""
+    # Patron 777777 loan is 2 days overdue in sample data: 2 * $0.50 = $1.00
+    result = calculate_late_fee_for_book("777777", 1) 
+    assert result["fee_amount"] == 1.00
 
 def test_late_fee_after_7_days():
-    """Old test removed due to fixture dependency."""
-    pass
+    """FIX: Fee increases to $1/day after first 7 days (Patron 888888 is 8 days overdue)."""
+    # Patron 888888 loan is 8 days overdue: (7 * $0.50) + (1 * $1.00) = $4.50
+    result = calculate_late_fee_for_book("888888", 1)
+    assert result["fee_amount"] == 4.50
 
 def test_late_fee_cap():
-    """Old test removed due to fixture dependency."""
-    pass
-
-def test_late_fee_exactly_7_days():
-    """New Test: Fixture dependent. Skip execution."""
-    pass
-
-def test_late_fee_exactly_8_days():
-    """New Test: Fixture dependent. Skip execution."""
-    pass
+    """FIX: Fee should not exceed $15 max (Patron 999999 is 22 days overdue)."""
+    # Patron 999999 loan is 22 days overdue, calculation yields $18.50, capped at $15.00
+    result = calculate_late_fee_for_book("999999", 1)
+    assert result["fee_amount"] == 15.00
 
 def test_late_fee_book_not_in_catalog():
     """Tests calculate_late_fee_for_book when the book ID does not exist in the catalog."""
-    # 9999 is a book ID assumed not to exist in the database.
     result = calculate_late_fee_for_book("123456", 9999) 
-    
     assert result['fee_amount'] == 0.00
     assert result['days_overdue'] == 0
     assert "Book not found" in result['status']
 
-# --- R6 Tests: Ensuring the Book Search Function Works Properly ---
+# R6 Tests: Ensuring the Book Search Function Works Properly
 
 def test_search_by_title_partial():
     """Search should return partial match on title."""
@@ -234,22 +229,16 @@ def test_search_invalid_type():
     results = search_books_in_catalog("something", "invalid")
     assert results == []
 
-def test_search_empty_query():
-    """FIX: Empty query returns ALL books per logic, so assert non-empty list."""
-    results = search_books_in_catalog("", "title")
-    assert isinstance(results, list)
-    assert len(results) > 0 
-
 def test_search_empty_query_returns_all():
-    """FIX: Test empty search query (e.g., just spaces) returns ALL books."""
+    """Test empty search query returns ALL books."""
     results = search_books_in_catalog("   ", "title")
     assert isinstance(results, list)
     assert len(results) > 0 
 
-# --- R7 Tests: Checking the Customer Status Report Function ---
+# R7 Tests: Checking the Customer Status Report Function
 
 def test_patron_status_structure():
-    """FIX: Status report should include corrected required fields."""
+    """Status report should include correct required fields."""
     report = get_patron_status_report("123456")
     expected_keys = [
         "patron_id", 
@@ -266,22 +255,22 @@ def test_patron_status_valid_patron():
     assert isinstance(report, dict)
 
 def test_patron_status_invalid_patron():
-    """FIX: Invalid patron ID should return error structure."""
+    """Invalid patron ID should return error structure."""
     report = get_patron_status_report("badid")
     assert "error" in report
 
 def test_patron_status_late_fees_format():
-    """FIX: Use corrected key 'total_late_fees_owed'."""
+    """Use corrected key 'total_late_fees_owed'."""
     report = get_patron_status_report("123456")
     assert isinstance(report["total_late_fees_owed"], float)
 
 def test_patron_status_borrow_limit_tracking():
-    """FIX: Use corrected key 'currently_borrowed_count'."""
+    """Use corrected key 'currently_borrowed_count'."""
     report = get_patron_status_report("123456")
     assert report["currently_borrowed_count"] >= 0
 
 def test_patron_status_correct_structure_new_keys():
-    """FIX: Test the final, correct report structure and types."""
+    """Test the final, correct report structure and types."""
     report = get_patron_status_report("123456") 
     expected_keys = {
         'patron_id', 
@@ -297,7 +286,7 @@ def test_patron_status_correct_structure_new_keys():
     assert isinstance(report['borrowing_history'], list)
 
 def test_patron_status_no_loans():
-    """FIX: Test status report for a patron with no loan history."""
+    """Test status report for a patron with no loan history."""
     PATRON_ID = "000000" # Patron not set up in sample data
     report = get_patron_status_report(PATRON_ID)
     
