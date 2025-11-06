@@ -3,7 +3,7 @@ Patron Routes - Patron status and management endpoints (R7)
 """
 
 from flask import Blueprint, render_template, request, flash
-from library_service import get_patron_status_report # Import the R7 business logic
+from services.library_service import get_patron_status_report # Import the R7 business logic
 
 patron_bp = Blueprint('patron', __name__)
 

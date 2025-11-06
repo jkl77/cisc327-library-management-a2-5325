@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from library_service import (
+from services.library_service import (
     add_book_to_catalog,
     borrow_book_by_patron,
     return_book_by_patron,
